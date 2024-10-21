@@ -136,7 +136,6 @@ void free_memory_pool() {
         return;  // Nothing to free
     }
     while(current!=NULL) {
-        current->free= 1;
         block_header_t* next = current->next;
         VirtualFree(current,current->size+sizeof(block_header_t), MEM_RELEASE);
         current = next;
