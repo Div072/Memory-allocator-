@@ -1,6 +1,6 @@
-#include <locale.h>
-#include <stddef.h>
+#pragma once
 #include <stdio.h>
+#include <stddef.h>
 #include <windows.h>  // For VirtualAlloc and VirtualFree
 
 #define INITIAL_POOL_SIZE 1024 * 1024  // Initial memory pool size (1MB)
