@@ -10,7 +10,7 @@ typedef struct block_header {
     size_t size;
     int free;
     struct block_header *next;
-    struct block_header *prev; //previous node
+    struct block_header *prev;
 } block_header_t;
 
 block_header_t *free_list = NULL;  // Start with no free list
@@ -60,7 +60,7 @@ void *initialize_memory_pool(size_t size) {
     return initial_block;
 }
 
-// Function to expand the memory pool when it's full
+
 void expand_memory_pool(size_t size) {
     // Allocate a new memory block using VirtualAlloc()
 
@@ -80,7 +80,7 @@ void expand_memory_pool(size_t size) {
 }
 
 void *my_malloc(size_t size) {
-   // size = align(size);  // Align the requested size
+
     if(size+sizeof(block_header_t)>INITIAL_POOL_SIZE) {
         printf("tried to allocate more memory then memory pool size\n");
         return NULL;
@@ -119,13 +119,11 @@ void *my_malloc(size_t size) {
 
 void *my_free(void *ptr) {
     if (!ptr) return;
-
-    // Correct pointer arithmetic to access block header
     block_header_t *header = (block_header_t *)&ptr - 1;
     header->free = 1;
     defragmentation();
     return NULL;
-    // Add logic to coalesce adjacent free blocks here if needed
+
 }
 
 
@@ -133,7 +131,7 @@ void *my_free(void *ptr) {
 void free_memory_pool() {
     printf("Freeing memory pool...\n");
     block_header_t *current = free_list;
-    // Optional: Check if free_list is valid
+
     if (!current) {
         return;  // Nothing to free
     }
@@ -143,10 +141,6 @@ void free_memory_pool() {
         VirtualFree(current,current->size+sizeof(block_header_t), MEM_RELEASE);
         current = next;
     }
-
-
-
-    // Optional: Reset free_list after freeing
     
 }
 
