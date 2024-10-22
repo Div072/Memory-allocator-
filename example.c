@@ -14,12 +14,16 @@ int main() {
         }
     }
 
-    int *p2 = my_malloc(1024*1024);
+    int *p2 = (int*)my_malloc(sizeof(int)*20);
+
+
     if(p2) {
         printf("Allocated 1024*1024 bytes at %p\n", p2);
     }
     // Free memory and try re-allocating
     p1 = my_free(p1);
+
+    my_realloac(0,p2);
 
     // Clean up and release the memory pool
     free_memory_pool();

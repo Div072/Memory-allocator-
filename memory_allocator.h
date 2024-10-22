@@ -15,8 +15,8 @@ typedef struct block_header {
 
 block_header_t *free_list = NULL;  // Start with no free list
 
-
 void traverse_memory_list() {
+    printf("traverse_memory_list\n");
     block_header_t *curr = free_list;
     while (curr != NULL) {
         printf("memory: %p, %p, size: %zu, free: %d\n", curr, curr->prev,curr->size, curr->free);
@@ -79,6 +79,31 @@ void expand_memory_pool(size_t size) {
     new_block->prev = current; // link prev of new to current.
 }
 
+
+void *my_free(void *ptr) {
+    if (!ptr) return;
+    block_header_t *header = (block_header_t *)ptr - 1;
+    header->free = 1;
+    defragmentation();
+    return (void *)ptr;
+}
+
+// Clean up and release the memory pool using VirtualFree()
+void free_memory_pool() {
+    printf("Freeing memory pool...\n");
+    block_header_t *current = free_list;
+
+    if (!current) {
+        return;  // Nothing to free
+    }
+    while(current!=NULL) {
+        block_header_t* next = current->next;
+        VirtualFree((void*)current-1,current->size+sizeof(block_header_t), MEM_RELEASE);
+        current = next;
+    }
+
+}
+
 void *my_malloc(size_t size) {
 
     if(size+sizeof(block_header_t)>INITIAL_POOL_SIZE) {
@@ -105,7 +130,7 @@ void *my_malloc(size_t size) {
             }
 
             current->free = 0;
-            return (void *)(current + 1);  // Return the memory after the block header
+            return (void *)(current+1);  // Return the memory after the block header
         }
         current = current->next;
     }
@@ -113,34 +138,54 @@ void *my_malloc(size_t size) {
     // If no suitable block was found, expand the memory pool
     printf("Memory pool exhausted, expanding...\n");
     expand_memory_pool(INITIAL_POOL_SIZE);
-    defragmentation();
     return my_malloc(size);  // Try allocating again after expanding
 }
 
-void *my_free(void *ptr) {
-    if (!ptr) return;
-    block_header_t *header = (block_header_t *)&ptr - 1;
-    header->free = 1;
-    defragmentation();
-    return NULL;
-
-}
-
-
-// Clean up and release the memory pool using VirtualFree()
-void free_memory_pool() {
-    printf("Freeing memory pool...\n");
-    block_header_t *current = free_list;
-
-    if (!current) {
-        return;  // Nothing to free
+void *my_realloac(size_t size,void *ptr) {
+    // if size is zero then free the memory:
+    block_header_t *current_block = (block_header_t *)ptr - 1;
+    if(size == 0 && ptr !=NULL) {
+        return my_free(ptr);
     }
-    while(current!=NULL) {
-        block_header_t* next = current->next;
-        VirtualFree(current,current->size+sizeof(block_header_t), MEM_RELEASE);
-        current = next;
+    // if ptr ==  NULL then simple malloc call;
+    if(ptr == NULL) {
+        return my_malloc(size);
     }
-    
+    // if new size is smaller than the previous size then just shrink it down
+
+    if(current_block!=NULL && current_block->size>size) {
+        block_header_t* new_block = (block_header_t*)((char*)ptr + size + sizeof(block_header_t));
+        new_block->size = current_block->size - size;
+        current_block->size = size;
+        new_block->free = 1;
+        new_block->next = current_block->next;
+        new_block->prev = current_block;
+        current_block->next = new_block;
+        return (void*)current_block-1;
+    }
+    // if block is bigger than current then either make new block at the end or if have enough space in next block then merge it and split it.
+    if(current_block!=NULL && current_block->size < size) {
+        if(current_block->next!= NULL && current_block->next->free == 1 && current_block->size + current_block->next->size >= size) {
+            size_t new_size = current_block->size + current_block->next->size - size;
+            if(new_size > sizeof(block_header_t)) {
+                block_header_t* new_block = (block_header_t*)((char*) ptr + size + sizeof(block_header_t));
+                // new_block is remaining block
+                new_block->size = new_size;
+                new_block->free = 1;
+                new_block->next = current_block->next->next; // current_block->next->next can be NULL
+                new_block->prev = current_block;
+                current_block->size = size;
+                current_block->next = new_block;
+                return (void*)current_block+1;
+            }else {
+                current_block->size = size;
+                current_block->next = current_block->next->next;
+                return (void*)current_block+1;
+            }
+        }else {
+            return my_malloc(size);
+        }
+    }
 }
 
 void init_malloc() {
